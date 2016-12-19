@@ -54,11 +54,12 @@ def get_parameter_csv(base_path):
         while(True):
             try:
                 key, data = next(curves)
+                pseudoNr=int(indexNoZeros[indexNoZeros.index == key]["DPRD_PSEUDO_NR"])
                 start, end = get_start_end(data, 10, 3)
                 cropped_data = data[start:end]
                 data_mean = np.mean(cropped_data)
                 data_var = np.var(cropped_data)
-                f.write('{}, {:.2f}, {:.2f}\n'.format(key, data_mean, data_var))
+                f.write('{}, {}, {:.2f}, {:.2f}\n'.format(key, pseudoNr, data_mean, data_var))
                 
             except Exception as e:
                 f.close()
