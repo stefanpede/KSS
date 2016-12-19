@@ -49,7 +49,7 @@ def get_parameter_csv(base_path):
     
     with open('parameters.csv', 'w') as f:
     
-        f.write('DMVT_ID, Mean, Variance\n')
+        f.write('DMVT_ID,Pseudo_Nr, Mean, Variance\n')
         
         while(True):
             try:
