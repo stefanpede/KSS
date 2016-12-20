@@ -1,6 +1,10 @@
 import numpy as np
 import os
 from kss import CurveManager
+try:
+    from tqdm import tqdm
+except:
+    pass
 
 def smooth_data(data, filt_len):
     mean_filter = np.asarray([1] * filt_len)
@@ -47,6 +51,9 @@ def get_parameter_csv(base_path):
     indexNoZeros = cm.index[cm.index['DST_Temp_vor_STB'] != 0]
     curves = cm.load_curves(key, indexNoZeros)
     
+    # progress bar
+    prg_bar = tqdm(total=len(indexNoZeros))
+    
     with open('parameters.csv', 'w') as f:
     
         f.write('DMVT_ID,Pseudo_Nr, Mean, Variance\n')
@@ -60,6 +67,9 @@ def get_parameter_csv(base_path):
                 data_mean = np.mean(cropped_data)
                 data_var = np.var(cropped_data)
                 f.write('{}, {}, {:.2f}, {:.2f}\n'.format(key, pseudoNr, data_mean, data_var))
+                
+                # progress bar update
+                prg_bar.update()
                 
             except Exception as e:
                 f.close()
