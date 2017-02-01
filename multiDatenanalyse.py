@@ -5,30 +5,37 @@ from sklearn.preprocessing import LabelEncoder
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
+from collections import OrderedDict
+import operator
+
+from scipy.stats import zscore
 
 # high level functions
-def load_data(mmPfad='../data/Messmatrix.csv', cor_th=0.8):
+def load_data(mmPfad='../data/Messmatrix.csv', cor_th=0.8, verbose=True):
     
     # Rohe Daten einladen
     df = pd.read_csv(mmPfad)
-    
-    print("Rohe Daten: \n")
-    print("Anzahl der Kennwerte: "+str(df.shape[1]))
-    print("Anzahl der vermessenen Rohre: "+str(df.shape[0]))
-    print("Anzahl der gefahrenen Produkte: "+str(df.groupby(["Header_Leitguete","Header_Soll_AD","Header_Soll_WD"])["Header_Pseudonummer"].agg(["count"]).shape[0]))
-    print("Anzahl der Walzlose: "+str(len(pd.unique(df["Header_Walzlos"]))))
+    if verbose:
+        print("Rohe Daten: \n")
+        print("Anzahl der Kennwerte: "+str(df.shape[1]))
+        print("Anzahl der vermessenen Rohre: "+str(df.shape[0]))
+        print("Anzahl der gefahrenen Produkte: "+str(df.groupby(["Header_Leitguete","Header_Soll_AD","Header_Soll_WD"])["Header_Pseudonummer"].agg(["count"]).shape[0]))
+        print("Anzahl der Walzlose: "+str(len(pd.unique(df["Header_Walzlos"]))))
     
     # Vorberarbeitung, beseitigen von NaNs
     dfVV2 = preprocess(df)
-    print("\nDaten nach Vorverarbeitung: \n")
-    print("Anzahl der Kennwerte: "+str(dfVV2.shape[1]))
-    print("Anzahl der vermessenen Rohre: "+str(dfVV2.shape[0]))
-    print("Anzahl der gefahrenen Produkte: "+str(dfVV2.groupby(["Header_Leitguete","Header_Soll_AD","Header_Soll_WD"])["Header_Pseudonummer"].agg(["count"]).shape[0]))
-    print("Anzahl der Walzlose: "+str(len(pd.unique(dfVV2["Header_Walzlos"]))))
     
-    # Korrelierte Merkmale entfernen
-    print("\nKorrelierte Merkmale entfernen\n")
+    if verbose:
+        print("\nDaten nach Vorverarbeitung: \n")
+        print("Anzahl der Kennwerte: "+str(dfVV2.shape[1]))
+        print("Anzahl der vermessenen Rohre: "+str(dfVV2.shape[0]))
+        print("Anzahl der gefahrenen Produkte: "+str(dfVV2.groupby(["Header_Leitguete","Header_Soll_AD","Header_Soll_WD"])["Header_Pseudonummer"].agg(["count"]).shape[0]))
+        print("Anzahl der Walzlose: "+str(len(pd.unique(dfVV2["Header_Walzlos"]))))
+
+        # Korrelierte Merkmale entfernen
+        print("\nKorrelierte Merkmale entfernen\n")
     dfNoCor, _ = dropCorrelatedColumns((dfVV2[dfVV2.columns[6:]], dfVV2[dfVV2.columns[6:]]), cor_th)
     dfVV2 = pd.concat((dfVV2[dfVV2.columns[:6]], dfNoCor), axis=1)
     
@@ -166,3 +173,62 @@ def get_lda_data(df, test_frac=0.2):
     test_set['data'] = np.asarray(test_set['data'])
         
     return train_set, test_set
+
+
+def biplot(score,coeff,pcax,pcay,labels=None):
+    pca1=pcax-1
+    pca2=pcay-1
+    xs = score[:,pca1]
+    ys = score[:,pca2]
+    n=score.shape[1]
+    scalex = 1.0/(xs.max()- xs.min())
+    scaley = 1.0/(ys.max()- ys.min())
+    plt.scatter(xs*scalex,ys*scaley)
+    for i in range(n):
+        plt.arrow(0, 0, coeff[i,pca1], coeff[i,pca2],color='r',alpha=0.5) 
+        if labels is None:
+            plt.text(coeff[i,pca1]* 1.15, coeff[i,pca2] * 1.15, "Var"+str(i+1), color='g', ha='center', va='center')
+        else:
+            plt.text(coeff[i,pca1]* 1.15, coeff[i,pca2] * 1.15, labels[i], color='g', ha='center', va='center')
+    plt.xlim(-1,1)
+    plt.ylim(-1,1)
+    plt.xlabel("PC{}".format(pcax))
+    plt.ylabel("PC{}".format(pcay))
+    plt.grid()
+    
+def mv_features(df_all_prod):
+    features = list(df_all_prod[0].columns[6:])
+    feature_dict = OrderedDict((feature,0) for feature in features)
+
+    for product_id in range(len(df_all_prod)):
+        df_prod = df_all_prod[product_id]
+
+        if len(pd.unique(df_prod["Header_Walzlos"])) < 15:
+            continue
+        # train and test set
+        test_frac = 0.05
+        train_set, test_set = get_lda_data(df_prod, test_frac=test_frac)
+
+        # zscore data
+        train_set['data'] = zscore(train_set['data'])
+        test_set['data'] = zscore(test_set['data'])
+
+        # extract data and label
+        X_train, y_train = train_set['data'], train_set['label']
+
+        # LDA object
+        sklearn_LDA = LDA(solver='eigen')
+
+        # fit with train data
+        sklearn_LDA = sklearn_LDA.fit(X_train, y_train)
+
+        ew_ratio = sklearn_LDA.explained_variance_ratio_
+        eigvecs = sklearn_LDA.scalings_
+
+        for index_vec, eig_vec in enumerate(eigvecs.T):
+            for index_feat, feature in enumerate(features):
+                feature_dict[feature] += ew_ratio[index_vec] * np.abs(eig_vec[index_feat])
+
+        sorted_feature_dict = sorted(feature_dict.items(), key=operator.itemgetter(1), reverse=True)
+
+    return sorted_feature_dict
