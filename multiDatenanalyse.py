@@ -5,7 +5,7 @@ from sklearn.preprocessing import LabelEncoder
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib
-
+pd.options.mode.chained_assignment = None
 
 # high level functions
 def load_data(mmPfad, cor_th=0.8):
