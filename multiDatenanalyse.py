@@ -14,6 +14,10 @@ from scipy.stats import zscore
 
 # high level functions
 def load_data(mmPfad='../data/Messmatrix.csv', cor_th=0.8, verbose=True):
+pd.options.mode.chained_assignment = None
+
+# high level functions
+def load_data(mmPfad, cor_th=0.8):
     
     # Rohe Daten einladen
     df = pd.read_csv(mmPfad)
@@ -74,9 +78,9 @@ def plot_lda(X_lda, y, title, ax=None):
         ax.scatter(X_lda[:,0][y==label], X_lda[:,1][y==label], X_lda[:,2][y==label], marker='*', color=color_i,
                     label=label, alpha=1)
         
-    ax.set_xlabel('LDA_1')
-    ax.set_ylabel('LDA_2')
-    ax.set_zlabel('LDA_3')
+    ax.set_xlabel('Komponente 1')
+    ax.set_ylabel('Komponente 2')
+    ax.set_zlabel('Komponente 3')
     ax.set_title(title)
     
     #ax.legend()
